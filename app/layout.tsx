@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--font-fraunces" });
 
 export const metadata: Metadata = {
-  title: "IAPSS — International Association for Political Science Students",
+  title: "IAPSS MENA | Political Science Students",
   description: "A global, student-run network for political science students and early-career researchers.",
 };
 

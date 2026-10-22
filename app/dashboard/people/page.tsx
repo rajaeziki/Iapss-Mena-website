@@ -66,7 +66,7 @@ export default function People() {
                 <tr key={p.id} className="border-t border-slate-100">
                   <td className="p-3 font-medium">{p.full_name}</td>
                   <td className="p-3 text-slate-500">{p.email}</td>
-                  <td className="p-3 text-slate-500">{gs.map((g) => g.name + (g.leader_id === p.id ? " (leader)" : "")).join(", ") || "—"}</td>
+                  <td className="p-3 text-slate-500">{gs.map((g) => g.name + (g.leader_id === p.id ? " (leader)" : "")).join(", ") || "No group"}</td>
                   <td className="p-3">
                     <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${STATUS_STYLE[p.status]}`}>{p.status}</span>
                     {p.id !== user.id && p.status === "approved" && (

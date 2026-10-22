@@ -65,7 +65,7 @@ export default function TasksPage() {
                       <td className="p-3"><Link className="text-brand hover:underline" href={`/dashboard/groups/${t.group_id}`}>{groups.find((g) => g.id === t.group_id)?.name}</Link></td>
                       <td className="p-3 text-slate-600">{name(t.assignee_id)}</td>
                       <td className="p-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${PRIORITY_STYLE[t.priority]}`}>{t.priority}</span></td>
-                      <td className={`p-3 ${isOverdue(t) ? "font-semibold text-rose-600" : "text-slate-500"}`}>{t.due_date ?? "—"}</td>
+                      <td className={`p-3 ${isOverdue(t) ? "font-semibold text-rose-600" : "text-slate-500"}`}>{t.due_date ?? "No date"}</td>
                       <td className="p-3"><span className="flex items-center gap-1.5"><span className={`h-2 w-2 rounded-full ${st.dot}`} />{st.label}</span></td>
                     </tr>
                   );

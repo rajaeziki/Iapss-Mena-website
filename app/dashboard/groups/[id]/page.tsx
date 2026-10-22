@@ -140,7 +140,7 @@ export default function GroupPage() {
             <div className="mt-6 border-t border-slate-100 pt-4">
               <label className="label">Group leader</label>
               <select className="input" value={group.leader_id ?? ""} onChange={(e) => setLeader(e.target.value)}>
-                <option value="">— none —</option>
+                <option value="">No leader</option>
                 {ws.profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
               </select>
               <button onClick={deleteGroup} className="mt-6 text-sm font-medium text-rose-600 hover:underline">Delete this group</button>

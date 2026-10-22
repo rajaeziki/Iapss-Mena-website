@@ -35,7 +35,7 @@ export default function Groups() {
           <div>
             <label className="label">Leader (optional, can be set later)</label>
             <select className="input" value={leader} onChange={(e) => setLeader(e.target.value)}>
-              <option value="">— none —</option>
+              <option value="">No leader yet</option>
               {profiles.map((p) => <option key={p.id} value={p.id}>{p.full_name}</option>)}
             </select>
           </div>

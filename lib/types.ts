@@ -1,5 +1,5 @@
 export type Profile = { id: string; full_name: string; email: string; role: "super_admin" | "member"; status: "pending" | "approved" | "rejected" };
-export type SiteItem = { id: string; kind: "team" | "partner" | "project"; title: string; subtitle: string; description: string; link: string; sort: number; created_at: string };
+export type SiteItem = { id: string; kind: "team" | "partner" | "project" | "news"; title: string; subtitle: string; description: string; link: string; sort: number; created_at: string };
 export type Group = { id: string; name: string; description: string; leader_id: string | null; created_at: string };
 export type GroupMember = { group_id: string; user_id: string };
 export type Status = "todo" | "in_progress" | "review" | "done";

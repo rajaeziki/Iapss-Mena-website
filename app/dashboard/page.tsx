@@ -15,7 +15,7 @@ export default function Overview() {
 
   return (
     <>
-      <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-[#2b3d72] to-teal2 p-8 text-white shadow-soft md:p-10">
+      <div className="relative mb-8 overflow-hidden rounded-3xl bg-gradient-to-br from-brand via-[#0a2a57] to-teal2 p-8 text-white shadow-soft md:p-10">
         <div className="dot-grid-light absolute inset-0 opacity-60" />
         <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-white/10" />
         <div className="absolute -bottom-24 right-24 h-56 w-56 rounded-full bg-teal-300/20 blur-2xl" />

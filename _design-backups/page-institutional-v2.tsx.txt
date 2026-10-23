@@ -1,0 +1,908 @@
+"use client";
+import Link from "next/link";
+import Logo from "@/components/Logo";
+import Chatbot from "@/components/Chatbot";
+import SiteSection from "@/components/SiteSection";
+import PartnerLogo, { domainOf } from "@/components/PartnerLogo";
+import Tilt from "@/components/Tilt";
+import { useLang } from "@/components/Lang";
+import { useEffect, useRef, useState } from "react";
+
+const CONTACT = "pr.mena@iapss.org";
+const mail = (subject: string) => `mailto:${CONTACT}?subject=${encodeURIComponent(subject)}`;
+
+// [english, arabic] pairs, taken from the official IAPSS MENA site
+const RESEARCH_AREAS: [string, string][] = [
+  ["Governance and political reform", "الحوكمة والإصلاح السياسي"],
+  ["Elections and political participation", "الانتخابات والمشاركة السياسية"],
+  ["Political institutions", "المؤسسات السياسية"],
+  ["Political economy", "الاقتصاد السياسي"],
+  ["Youth and politics", "الشباب والسياسة"],
+  ["Leadership and populism", "القيادة والشعبوية"],
+  ["Public policy", "السياسات العامة"],
+  ["Political communication and media", "الاتصال السياسي والإعلام"],
+  ["Digital governance and technology", "الحوكمة الرقمية والتكنولوجيا"],
+  ["Climate crisis", "أزمة المناخ"],
+  ["Regional conflicts and resource security", "النزاعات الإقليمية وأمن الموارد"],
+  ["Grassroots movements and civil society", "الحركات الشعبية والمجتمع المدني"],
+  ["Democratization and democratic backsliding", "التحول الديمقراطي والتراجع الديمقراطي"],
+  ["Evaluation and AI policy", "التقييم وسياسة الذكاء الاصطناعي"],
+];
+
+// Listed on the official IAPSS Global partners page (with the website each one links to). NOT IAPSS MENA partners.
+const GLOBAL_PARTNERS: [string, string][] = [
+  ["Advent Group", "https://accessmba.com/"],
+  ["ASEAN Youth Organization", "https://aseanyouth.net/"],
+  ["Asia-Europe Foundation (ASEF)", "https://asef.org/"],
+  ["Asian Law Students’ Association", "https://alsainternational.org/"],
+  ["Circle of Sustainable Europe", "https://sustainableeurope.eu/"],
+  ["Concordia University", "https://concordia.ca/"],
+  ["Disability Unite", "https://disabilityunite.org/"],
+  ["European Academy of Diplomacy", "https://diplomacy.pl/"],
+  ["European Student Think Tank", "https://esthinktank.com/"],
+  ["European Horizons", "https://europeanhorizons.org/"],
+  ["Global Campus of Human Rights", "https://gchumanrights.org/"],
+  ["Global Policy Insights", "https://globalpolicyinsights.org/"],
+  ["International Political Science Association (IPSA)", "https://ipsa.org/"],
+  ["International Studies Association (ISA)", "https://isanet.org/"],
+  ["Instats", "https://instats.org/"],
+  ["JASON Institute for Peace and Security Studies", "https://jasoninstitute.com/"],
+  ["Leading Women of Tomorrow", "https://leadingwomenoftomorrow.com/"],
+  ["North-West University", "https://nwu.ac.za/"],
+  ["POLITICO EU Studies & Career Fair", "https://politico.eu/"],
+  ["Student Think-Tank for Europe-Asia Relations", "https://stear.org/"],
+  ["The SDG Accord", "https://sdgaccord.org/"],
+  ["The Young Diplomat", "https://theyoungdiplomat.com/"],
+  ["UNESCO", "https://unesco.org/"],
+  ["Voters Without Borders", "https://voterswithoutborders.eu/"],
+  ["Yale University", "https://www.yale.edu/"],
+];
+
+/** Number that counts up once when scrolled into view. */
+function CountUp({ to, suffix = "" }: { to: number; suffix?: string }) {
+  const [v, setV] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined" || matchMedia("(prefers-reduced-motion: reduce)").matches) { setV(to); return; }
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min((t - t0) / 1400, 1);
+        setV(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [to]);
+  return <span ref={ref}>{v.toLocaleString("en-US")}{suffix}</span>;
+}
+
+/** Headline whose words rise in one after another. */
+function Words({ text, start = 0 }: { text: string; start?: number }) {
+  return (
+    <>
+      {text.split(" ").map((w, i) => (
+        <span key={i}>
+          <span className="word" style={{ animationDelay: `${(start + i) * 90 + 150}ms` }}>{w}</span>{" "}
+        </span>
+      ))}
+    </>
+  );
+}
+
+export default function Home() {
+  const { l, lang, setLang } = useLang();
+  const [scrolled, setScrolled] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [showTop, setShowTop] = useState(false);
+  const [menu, setMenu] = useState(false);
+  const [active, setActive] = useState("");
+  const [evFilter, setEvFilter] = useState<"all" | "soon" | "partner" | "ended">("all");
+  const [q, setQ] = useState("");
+  const [faq, setFaq] = useState<number | null>(0);
+  const heroBg = useRef<HTMLDivElement>(null);
+
+  // header shrinks on scroll, reading-progress bar, back-to-top button
+  useEffect(() => {
+    let raf = 0;
+    const on = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const y = window.scrollY;
+        const h = document.documentElement.scrollHeight - window.innerHeight;
+        setScrolled(y > 40);
+        setProgress(h > 0 ? Math.min(100, (y / h) * 100) : 0);
+        setShowTop(y > 900);
+        if (y < 400) setActive("");
+        if (heroBg.current && y < 1200) heroBg.current.style.transform = `translate3d(0, ${Math.round(y * 0.22)}px, 0)`;
+      });
+    };
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => { window.removeEventListener("scroll", on); cancelAnimationFrame(raf); };
+  }, []);
+
+  // highlight the menu entry of the section being read
+  useEffect(() => {
+    const els = ["about", "team", "events", "partners", "opportunities", "news", "contact"]
+      .map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => { if (e.isIntersecting) setActive(e.target.id); });
+    }, { rootMargin: "-35% 0px -60% 0px" });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+
+  // soft light that follows the cursor on dark sections
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-spot]"));
+    const hs = els.map((el) => {
+      const h = (e: MouseEvent) => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--mx", `${e.clientX - r.left}px`);
+        el.style.setProperty("--my", `${e.clientY - r.top}px`);
+      };
+      el.addEventListener("mousemove", h);
+      return [el, h] as const;
+    });
+    return () => hs.forEach(([el, h]) => el.removeEventListener("mousemove", h));
+  }, []);
+
+  // modern touch: sections and cards fade up as they scroll into view
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined" || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const els = Array.from(document.querySelectorAll<HTMLElement>("main section h2, main section article, main section li, [data-rv]"));
+    els.forEach((e) => e.classList.add("rv"));
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((en) => {
+        if (!en.isIntersecting) return;
+        const t = en.target as HTMLElement;
+        t.classList.add("rv-in");
+        io.unobserve(t);
+        setTimeout(() => t.classList.remove("rv", "rv-in"), 1000);
+      });
+    }, { threshold: 0.1 });
+    els.forEach((e) => io.observe(e));
+    return () => io.disconnect();
+  }, []);
+
+  const eyebrow = (t: string, dark = false) => (
+    <p className={`flex items-center gap-3 text-xs font-bold uppercase tracking-[.2em] ${dark ? "text-sky" : "text-teal2"}`}>
+      <span className="h-0.5 w-10 bg-cyan" /> {t}
+    </p>
+  );
+  const h2cls = "mt-4 max-w-3xl text-[clamp(2.4rem,5vw,4.4rem)] font-extrabold leading-[1.05] text-brand";
+
+  const pillars = [
+    [l("Research & publishing", "البحث والنشر"), l("Spaces for knowledge and political analysis.", "مساحات للمعرفة والتحليل السياسي.")],
+    [l("Regional dialogue", "الحوار الإقليمي"), l("Dialogue connecting voices and expertise.", "نقاشات تربط الأصوات والخبرات.")],
+    [l("Leadership & development", "القيادة والتطوير"), l("Pathways for skills and professional growth.", "فرص للمهارات والتواصل المهني.")],
+  ];
+
+  const gateway = [
+    [l("Explore", "اكتشف"), l("Engage", "شارك"), l("Programs & events", "البرامج والفعاليات"), "#events"],
+    [l("Discover", "اكتشف"), l("Research", "ابحث"), l("Research & publications", "البحث والمنشورات"), "#publications"],
+    [l("Collaborate", "تعاون"), l("Together", "معًا"), l("Regional partnerships", "الشراكات الإقليمية"), "#partners"],
+  ];
+
+  const soon = l("Coming soon", "قريبًا");
+  const tba = l("Official date to be announced", "سيُعلن الموعد رسميًا");
+  const events: { cat: "soon" | "partner" | "ended"; img?: string; tag: string; title: string; text: string; meta: string; href?: string }[] = [
+    { cat: "soon", img: "/img/arabic-dialogue.jpg", tag: soon, title: l("Arabic Political Dialogue Series", "سلسلة الحوار السياسي العربي"),
+      text: l("An Arabic-language series connecting academics, researchers, diplomats, policy experts, decision-makers and political professionals.", "سلسلة باللغة العربية تجمع الأكاديميين والباحثين والدبلوماسيين وخبراء السياسات وصنّاع القرار والمهنيين السياسيين."),
+      meta: l("Register interest", "سجّل اهتمامك"), href: mail("Register interest: Arabic Political Dialogue Series") },
+    { cat: "soon", tag: soon, title: l("IAPSS MENA Regional Congress", "المؤتمر الإقليمي لـ IAPSS MENA"),
+      text: l("The regional chapter's upcoming congress. Date, venue and registration details will be published once confirmed.", "مؤتمر الفرع الإقليمي القادم. سيتم نشر التاريخ والمكان وتفاصيل التسجيل بعد التأكيد."), meta: tba },
+    { cat: "soon", tag: soon, title: l("Leadership Program", "برنامج القيادة"),
+      text: l("An upcoming leadership development program for political science students and young professionals across the region.", "برنامج قادم لتنمية مهارات القيادة لدى طلاب العلوم السياسية والمهنيين الشباب في المنطقة."),
+      meta: tba, href: "#opportunities" },
+    { cat: "partner", img: "/img/yale.jpg", tag: l("Partner event · IAPSS Global", "فعالية شريكة · IAPSS Global"), title: l("Yale Annual YGJP Conference 2026", "مؤتمر YGJP السنوي من Yale 2026"),
+      text: l("An IAPSS Global partner event under the announced partnership with Yale University. It is not presented as an IAPSS MENA-organized event.", "فعالية شريكة لـ IAPSS Global ضمن الشراكة المعلنة مع جامعة ييل. ولا تُعرض كفعالية منظَّمة من IAPSS MENA."),
+      meta: l("5–8 November 2026", "5–8 نوفمبر 2026") },
+    { cat: "partner", img: "/img/best-diplomats.jpg", tag: l("Member benefit", "ميزة للأعضاء"), title: l("Exclusive Member Benefit with Best Diplomats", "ميزة حصرية للأعضاء مع Best Diplomats"),
+      text: l("Eligible members may request discounted rates for Türkiye Conference and the UN Immersion Program.", "يمكن للأعضاء المؤهلين طلب أسعار مخفّضة لمؤتمر تركيا وبرنامج الانغماس في الأمم المتحدة."),
+      meta: l("For eligible members", "للأعضاء المؤهلين"), href: "#opportunities" },
+    { cat: "ended", img: "/img/policy-brief.jpg", tag: l("Ended", "انتهت"), title: l("IAPSS MENA Policy Brief Competition 2026", "مسابقة موجز السياسات 2026"),
+      text: l("An opportunity for students and emerging researchers to turn evidence-based analysis into practical recommendations on governance and political change in MENA.", "فرصة للطلاب والباحثين الشباب لتحويل التحليل القائم على الأدلة إلى توصيات عملية حول الحوكمة والتغيير السياسي في المنطقة."),
+      meta: l("Deadline: 1 October 2026", "الموعد النهائي: 1 أكتوبر 2026"), href: "#projects" },
+  ];
+
+  const programs: [string, string, string][] = [
+    [l("Student Research Committees", "لجان البحث الطلابية"), l("Student-led research communities for collaboration and academic publishing.", "مجتمعات بحثية يقودها الطلاب للتعاون والنشر الأكاديمي."), "https://iapss.org/student-research-committees/"],
+    [l("Seasonal Schools", "المدارس الموسمية"), l("Intensive academic programs combining lectures, discussion and international exchange.", "برامج أكاديمية مكثفة تجمع المحاضرات والنقاش والتبادل الدولي."), "https://iapss.org/events/seasonal-schools/"],
+    [l("Delegations", "الوفود"), l("Opportunities to represent IAPSS and engage with international institutions and conferences.", "فرص لتمثيل IAPSS والتفاعل مع المؤسسات والمؤتمرات الدولية."), "https://iapss.org/events/delegations/"],
+    ["ARChive", l("A space preserving the organization's research, publications and institutional memory.", "مساحة تحفظ أبحاث المنظمة ومنشوراتها وذاكرتها المؤسسية."), "https://iapss.org/academic-department/project_archive/"],
+    [l("IAPSS Think Tank", "مركز IAPSS للفكر"), l("A student-led platform for policy analysis, research and public debate.", "منصة يقودها الطلاب لتحليل السياسات والبحث والنقاش العام."), "https://iapss.org/think-tank-crisis-observatory/"],
+  ];
+
+  const publications: [string, string, string][] = [
+    ["Politikon", l("A peer-reviewed, open-access academic journal in political science.", "مجلة أكاديمية محكّمة ومفتوحة الوصول في العلوم السياسية."), "https://politikon.iapss.org/"],
+    ["Encuentro Latinoamericano (ELA)", l("A peer-reviewed academic journal focused on Latin American politics.", "مجلة أكاديمية محكّمة تركّز على السياسة في أمريكا اللاتينية."), "https://ela.iapss.org/"],
+    ["A Different View (ADV)", l("IAPSS's platform for articles and political analysis.", "منصة IAPSS للمقالات والتحليل السياسي."), "https://iapss.org/a-different-view/"],
+  ];
+
+  const filteredPartners = GLOBAL_PARTNERS.filter(([n]) => n.toLowerCase().includes(q.trim().toLowerCase()));
+
+  const faqs: [string, string][] = [
+    [l("What is IAPSS MENA?", "ما هو IAPSS MENA؟"), l(
+      "IAPSS MENA is the Middle East and North Africa Regional Chapter of the International Association for Political Science Students (IAPSS). It connects students, researchers and young professionals across the region through dialogue, research and leadership.",
+      "IAPSS MENA هو الفرع الإقليمي للرابطة الدولية لطلاب العلوم السياسية (IAPSS) في الشرق الأوسط وشمال أفريقيا. يربط الطلاب والباحثين والمهنيين الشباب في المنطقة عبر الحوار والبحث والقيادة.")],
+    [l("How do I join?", "كيف أنضم؟"), l(
+      "Choose “Request to join” and create your account. An admin reviews every request, and you get access to your group's space once it is approved.",
+      "اختر «اطلب الانضمام» وأنشئ حسابك. يراجع المشرف كل طلب، وتحصل على مساحة مجموعتك بعد الموافقة.")],
+    [l("Is the Policy Brief Competition still open?", "هل ما زالت مسابقة موجز السياسات مفتوحة؟"), l(
+      "No. Submissions for the IAPSS MENA Policy Brief Competition 2026 closed on 1 October 2026. Follow our programs and events for the next opportunities.",
+      "لا. انتهى التقديم لمسابقة موجز السياسات 2026 بتاريخ 1 أكتوبر 2026. تابع برامجنا وفعالياتنا لمعرفة الفرص القادمة.")],
+    [l("How can my organization collaborate with IAPSS MENA?", "كيف يمكن لمؤسستي التعاون مع IAPSS MENA؟"), l(
+      "We welcome dialogue with universities, research centers, international institutions, diplomatic bodies and relevant organizations. Write to pr.mena@iapss.org.",
+      "نرحب بالتواصل مع الجامعات ومراكز البحوث والمؤسسات الدولية والجهات الدبلوماسية والمنظمات ذات الصلة. راسلنا على pr.mena@iapss.org.")],
+    [l("What is the Best Diplomats member benefit?", "ما هي ميزة Best Diplomats للأعضاء؟"), l(
+      "Eligible members may request discounted rates for the Best Diplomats Türkiye Conference and UN Immersion Program. Best Diplomats runs the programs independently and handles registration and payment; IAPSS MENA does not collect payments.",
+      "يمكن للأعضاء المؤهلين طلب أسعار مخفّضة لمؤتمر Best Diplomats في تركيا وبرنامج الانغماس في الأمم المتحدة. تدير Best Diplomats البرامج بشكل مستقل وتتولى التسجيل والدفع؛ ولا يجمع IAPSS MENA أي مدفوعات.")],
+    [l("Are IAPSS Global partners also IAPSS MENA partners?", "هل شركاء IAPSS Global هم شركاء IAPSS MENA أيضًا؟"), l(
+      "Not automatically. The organizations on the IAPSS Global partners page are partners of IAPSS Global. IAPSS MENA's own partners are listed separately on this page.",
+      "ليس تلقائيًا. الجهات في صفحة شركاء IAPSS Global هي شركاء IAPSS Global. أما شركاء IAPSS MENA أنفسهم فيُعرضون بشكل منفصل في هذه الصفحة.")],
+  ];
+
+  const nav: [string, string][] = [
+    ["#about", l("About", "من نحن")], ["#team", l("Leadership", "القيادة")], ["#events", l("Programs & events", "البرامج والفعاليات")],
+    ["#partners", l("Partnerships", "الشراكات")], ["#opportunities", l("Opportunities", "الفرص")], ["#news", l("News", "الأخبار")], ["#contact", l("Contact", "تواصل معنا")],
+  ];
+
+  return (
+    <main className="pub overflow-x-clip">
+      <a href="#gateway" className="sr-only z-[60] bg-white px-4 py-3 text-sm font-bold text-brand focus:not-sr-only focus:fixed focus:start-4 focus:top-4">{l("Skip to content", "انتقل إلى المحتوى")}</a>
+      {/* utility bar */}
+      <div className="hidden bg-[#031126] text-xs tracking-wide text-[#c7d6e7] md:block">
+        <div className="mx-auto flex min-h-[34px] max-w-[1360px] items-center justify-between px-6">
+          <span>{l("Middle East & North Africa Regional Chapter", "الفرع الإقليمي للشرق الأوسط وشمال أفريقيا")}</span>
+          <span className="flex gap-6">
+            <a href="https://iapss.org/" target="_blank" rel="noopener noreferrer" className="text-white hover:text-sky">IAPSS Global</a>
+            <a href="#contact" className="text-white hover:text-sky">{l("Institutional enquiries", "تواصل مؤسسي")}</a>
+          </span>
+        </div>
+      </div>
+
+      <header className={`sticky top-0 z-40 bg-white/95 backdrop-blur transition-shadow duration-300 ${scrolled ? "shadow-[0_10px_40px_rgba(3,20,48,.12)]" : "shadow-[0_8px_30px_rgba(3,20,48,.05)]"}`}>
+        <div className={`mx-auto flex max-w-[1360px] items-center justify-between gap-3 px-6 transition-all duration-300 ${scrolled ? "h-[66px]" : "h-[84px]"}`}>
+          <Logo size={scrolled ? 44 : 56} />
+          <nav className="hidden items-center text-[13px] font-semibold text-[#071a36] xl:flex" aria-label="Main">
+            {nav.map(([h, t]) => {
+              const on = active === h.slice(1);
+              return (
+                <a key={h} href={h} aria-current={on ? "true" : undefined}
+                  className={`relative px-3 py-3 transition hover:text-teal2 ${on ? "text-teal2" : ""} after:absolute after:inset-x-3 after:bottom-1 after:h-0.5 after:origin-left after:bg-cyan after:transition-transform after:duration-300 ${on ? "after:scale-x-100" : "after:scale-x-0"}`}>{t}</a>
+              );
+            })}
+          </nav>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setLang(lang === "en" ? "ar" : "en")} className="sq min-w-[58px] bg-brand px-4 py-3 text-sm font-bold text-white transition hover:bg-brand-500" aria-label="Switch language">
+              {lang === "en" ? "العربية" : "EN"}
+            </button>
+            <Link href="/login" className="sq hidden border border-brand/20 px-5 py-3 text-sm font-bold text-brand transition hover:border-brand sm:inline-block">{l("Sign in", "تسجيل الدخول")}</Link>
+            <Link href="/signup" className="sq hidden bg-cyan px-5 py-3 text-sm font-bold text-white transition hover:bg-teal2 sm:inline-block">{l("Join", "انضم")}</Link>
+            <button onClick={() => setMenu(!menu)} aria-expanded={menu} aria-controls="mobile-menu" className="sq border border-brand/20 px-4 py-3 text-sm font-bold text-brand xl:hidden">
+              {menu ? l("Close", "إغلاق") : l("Menu", "القائمة")}
+            </button>
+          </div>
+        </div>
+        <div className="h-[3px]"><div className="h-full bg-cyan" style={{ width: `${progress}%` }} /></div>
+        {menu && (
+          <nav id="mobile-menu" aria-label="Mobile" className="max-h-[75vh] overflow-y-auto border-t border-brand/10 bg-white xl:hidden">
+            {nav.map(([h, t]) => (
+              <a key={h} href={h} onClick={() => setMenu(false)} className="block border-b border-brand/5 px-6 py-4 text-base font-semibold text-brand">{t}</a>
+            ))}
+            <div className="flex gap-3 px-6 py-5">
+              <Link href="/login" className="sq flex-1 border border-brand/20 py-3 text-center text-sm font-bold text-brand">{l("Sign in", "تسجيل الدخول")}</Link>
+              <Link href="/signup" className="sq flex-1 bg-cyan py-3 text-center text-sm font-bold text-white">{l("Join", "انضم")}</Link>
+            </div>
+          </nav>
+        )}
+      </header>
+
+      {/* HERO */}
+      <section className="relative flex min-h-[clamp(640px,82vh,860px)] items-end overflow-hidden bg-[#031126]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <div ref={heroBg} className="absolute inset-x-0 -top-[30%] h-[130%] will-change-transform">
+          <img src="/img/hero.jpg" alt="" className="hero-photo h-full w-full object-cover" style={{ objectPosition: "center 44%" }} />
+        </div>
+        <div className="hero-shade absolute inset-0" />
+        <div className="hero-grid absolute inset-0" />
+        <div className="relative z-[2] mx-auto w-full max-w-[1360px] px-6 pb-36 pt-24">
+          <p className="flex items-center gap-3.5 text-xs font-bold uppercase tracking-[.24em] text-sky">
+            <span className="h-0.5 w-12 bg-cyan" /> {l("IAPSS · Middle East & North Africa", "IAPSS · الشرق الأوسط وشمال أفريقيا")}
+          </p>
+          <h1 className="mt-6 max-w-[980px] text-[clamp(3.2rem,8vw,8rem)] font-extrabold leading-[.95] text-white">
+            <Words text={l("Regional voices.", "من المنطقة،")} />
+            <span className="font-light text-[#64dfe0]"><Words text={l("Global dialogue.", "نصنع الحوار")} start={2} /></span>
+          </h1>
+          <p className="mt-7 max-w-[720px] text-lg leading-8 text-white/85">
+            {l(
+              "IAPSS MENA is the Middle East and North Africa Regional Chapter of the International Association for Political Science Students (IAPSS).",
+              "IAPSS MENA هو الفرع الإقليمي للرابطة الدولية لطلاب العلوم السياسية (IAPSS) في الشرق الأوسط وشمال أفريقيا."
+            )}
+          </p>
+          <div className="mt-9 flex flex-wrap gap-3">
+            <a href="#events" className="sq bg-white px-7 py-4 text-sm font-bold text-brand transition hover:-translate-y-0.5">{l("Explore opportunities", "استكشف الفرص")}</a>
+            <a href="#about" className="sq border border-white/40 px-7 py-4 text-sm font-bold text-white transition hover:-translate-y-0.5 hover:bg-white/10">{l("Our regional role", "دورنا الإقليمي")}</a>
+          </div>
+        </div>
+        <a href="#gateway" className="absolute bottom-8 start-[5%] z-[3] flex items-center gap-3 text-xs font-extrabold uppercase tracking-[.16em] text-white">
+          <span className="scroll-cue relative h-[42px] w-[42px] rounded-full border border-white/45" /> {l("Explore", "اكتشف")}
+        </a>
+        <div className="absolute bottom-10 end-[5%] z-[3] hidden text-xs font-bold uppercase tracking-[.2em] text-white/80 md:block">
+          {l("People · Ideas · Dialogue · Change", "أشخاص · أفكار · حوار · تغيير")}
+        </div>
+      </section>
+
+      {/* GATEWAY */}
+      <section id="gateway" className="relative z-[4] bg-white">
+        <div className="mx-auto grid max-w-[1360px] md:grid-cols-3">
+          {gateway.map(([small, word, title, href], i) => (
+            <a key={title} href={href}
+              className={`group flex min-h-[150px] items-center gap-5 border-brand/15 px-8 py-7 transition md:border-e ${i === 0 ? "bg-cyan text-white" : ""} hover:bg-brand hover:text-white`}>
+              <span className="self-start text-xs opacity-50">0{i + 1}</span>
+              <div className="flex flex-col">
+                <small className="text-xs uppercase tracking-[.13em] opacity-70">{small} · {word}</small>
+                <strong className="mt-1 text-lg leading-snug">{title}</strong>
+              </div>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      {/* DEADLINE BAND */}
+      <section className="bg-[#eaf2f5]">
+        <div className="mx-auto flex min-h-[110px] max-w-[1360px] flex-wrap items-center justify-between gap-5 px-6 py-6">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-[.16em] text-teal2">{l("Submissions closed", "انتهى التقديم")}</div>
+            <div className="mt-1 text-xl font-bold text-brand">{l("IAPSS MENA Policy Brief Competition 2026", "مسابقة موجز السياسات 2026")}</div>
+          </div>
+          <time className="border-brand/15 text-lg font-bold text-brand md:border-x md:px-8">{l("1 October 2026", "1 أكتوبر 2026")}</time>
+          <a href="#projects" className="sq bg-brand px-6 py-3.5 text-sm font-bold text-white transition hover:bg-brand-500">{l("Details", "التفاصيل")}</a>
+        </div>
+      </section>
+
+      {/* NETWORK NUMBERS */}
+      <section className="border-b border-brand/10 bg-white">
+        <div className="mx-auto max-w-[1360px] px-6 py-16">
+          <p className="mb-8 flex items-center gap-3 text-xs font-bold uppercase tracking-[.2em] text-teal2"><span className="h-0.5 w-10 bg-cyan" /> {l("The IAPSS network", "شبكة IAPSS")}</p>
+          <div className="grid gap-px bg-brand/10 md:grid-cols-3">
+            {[
+              [10000, "+", l("Members worldwide", "عضو حول العالم")],
+              [40, "+", l("Countries", "دولة")],
+              [GLOBAL_PARTNERS.length, "", l("Partner organisations of IAPSS Global", "جهة شريكة لـ IAPSS Global")],
+            ].map(([n, suf, label]) => (
+              <div key={String(label)} className="bg-white px-2 py-8 md:px-10">
+                <div className="text-[clamp(3rem,6vw,5rem)] font-extrabold leading-none text-brand"><CountUp to={n as number} suffix={suf as string} /></div>
+                <div className="mt-3 text-sm font-semibold uppercase tracking-wide text-slate-500">{label}</div>
+              </div>
+            ))}
+          </div>
+          <p className="mt-6 text-sm text-slate-500">{l("Figures describe the global IAPSS network that IAPSS MENA is part of.", "الأرقام تصف شبكة IAPSS العالمية التي ينتمي إليها IAPSS MENA.")}</p>
+        </div>
+      </section>
+
+      {/* PROGRAMS & EVENTS */}
+      <section id="events" className="mx-auto max-w-[1360px] px-6 py-28">
+        <div className="mb-10">
+          {eyebrow(l("Now at IAPSS MENA", "الآن في IAPSS MENA"))}
+          <h2 className={h2cls}>{l("Programs & events", "البرامج والفعاليات")}</h2>
+          <p className="mt-4 max-w-2xl text-slate-600">{l("Opportunities for knowledge and connection.", "فرص تصنع المعرفة والتواصل.")}</p>
+        </div>
+        <div role="tablist" aria-label={l("Filter events", "تصفية الفعاليات")} className="mb-8 flex flex-wrap gap-2">
+          {([["all", l("All", "الكل")], ["soon", l("Coming soon", "قريبًا")], ["partner", l("Partners & benefits", "الشركاء والمزايا")], ["ended", l("Ended", "انتهت")]] as const).map(([k, label]) => {
+            const n = k === "all" ? events.length : events.filter((e) => e.cat === k).length;
+            const on = evFilter === k;
+            return (
+              <button key={k} role="tab" aria-selected={on} onClick={() => setEvFilter(k)}
+                className={`sq px-5 py-3 text-sm font-bold transition ${on ? "bg-brand text-white" : "border border-brand/15 bg-white text-brand hover:border-brand"}`}>
+                {label} <span className={on ? "text-sky" : "text-slate-400"}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div key={evFilter} className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {events.filter((e) => evFilter === "all" || e.cat === evFilter).map((c, i) => {
+            const inner = (
+              <>
+                <div className="h-[340px] overflow-hidden bg-[#eaf2f5]">
+                  {c.img ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={c.img} alt={c.title} loading="lazy" className="h-full w-full object-cover object-top transition duration-700 group-hover:scale-105" />
+                  ) : (
+                    <div className="relative grid h-full place-items-center bg-gradient-to-br from-[#04142f] to-[#08295a]">
+                      <div className="orbit absolute -end-24 -top-24 h-72 w-72" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/logo-mena.png" alt="" className="relative h-24 w-auto brightness-0 invert" />
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col p-7 pb-14">
+                  <span className="text-xs font-bold uppercase tracking-[.08em] text-teal2">{c.tag}</span>
+                  <h3 className="mt-2 text-2xl font-bold leading-tight text-brand">{c.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{c.text}</p>
+                  <span className="mt-4 text-xs font-bold uppercase tracking-wide text-brand/60">{c.meta}</span>
+                </div>
+                <span className="absolute bottom-6 end-6 h-0.5 w-6 bg-cyan transition-all duration-300 group-hover:w-14" />
+              </>
+            );
+            const cls = "group relative flex h-full flex-col overflow-hidden bg-white shadow-[0_1px_0_rgba(9,35,72,.15)] transition-shadow duration-300 hover:shadow-[0_28px_80px_rgba(3,20,48,.16)]";
+            return (
+              <Tilt key={c.title} className="fade-up h-full" style={{ animationDelay: `${i * 80}ms` }}>
+                {c.href ? <a href={c.href} className={cls}>{inner}</a> : <article className={cls}>{inner}</article>}
+              </Tilt>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* ABOUT */}
+      <section id="about" className="border-y border-brand/10 bg-white">
+        <div className="mx-auto grid max-w-[1360px] gap-14 px-6 py-24 lg:grid-cols-[.8fr_1.2fr]">
+          <div>
+            {eyebrow(l("About", "من نحن"))}
+            <h2 className={h2cls}>{l("Where knowledge meets practice.", "منصة تجمع المعرفة بالممارسة.")}</h2>
+          </div>
+          <div className="space-y-5 text-lg leading-8 text-slate-600">
+            <p>{l(
+              "The chapter connects political science students, researchers, young professionals, universities, academic institutions and relevant organizations across MENA. It supports regional engagement, academic cooperation and knowledge exchange in international relations, public policy and governance, alongside professional development and institutional partnerships.",
+              "يربط الفرع طلاب العلوم السياسية والباحثين والمهنيين الشباب والجامعات والمؤسسات الأكاديمية والمنظمات ذات الصلة في المنطقة. ويعزز التعاون الأكاديمي وتبادل المعرفة في العلاقات الدولية والسياسات العامة والحوكمة، والتطوير المهني والشراكات المؤسسية."
+            )}</p>
+            <p>{l(
+              "Our mission is to create meaningful opportunities for dialogue, research, leadership, professional development and institutional cooperation, connecting emerging voices with academics, practitioners, organizations and international networks.",
+              "تتمثل رسالتنا في إيجاد فرص هادفة للحوار والبحث والقيادة والتطوير المهني والتعاون المؤسسي، وربط الأصوات الصاعدة في المنطقة بالأكاديميين والممارسين والمنظمات والشبكات الدولية."
+            )}</p>
+            <p>{l(
+              "We aim to transform ideas and research into practical engagement and policy-relevant impact while strengthening an inclusive and collaborative regional chapter within IAPSS.",
+              "نسعى إلى تحويل الأفكار والبحوث إلى مشاركة عملية وأثر ذي صلة بالسياسات، وبناء فرع إقليمي قوي وشامل وتعاوني ضمن IAPSS."
+            )}</p>
+          </div>
+        </div>
+      </section>
+
+      {/* MISSION BAND */}
+      <section data-spot className="spot relative isolate overflow-hidden bg-gradient-to-br from-[#04142f] to-[#08295a] py-28 text-white">
+        <div className="orbit pointer-events-none absolute -end-56 -top-[350px] h-[700px] w-[700px]" />
+        <div className="relative z-[1] mx-auto grid max-w-[1360px] gap-16 px-6 lg:grid-cols-[.85fr_1.15fr]">
+          <div>
+            {eyebrow(l("Mission & vision", "المهمة والرؤية"), true)}
+            <h2 className="mt-4 text-[clamp(2.6rem,5vw,5rem)] font-extrabold leading-[1.05]">{l("Our regional role", "دورنا الإقليمي")}</h2>
+            <p className="mt-6 leading-8 text-white/75">{l(
+              "As IAPSS's regional chapter, we advance academic and professional engagement across MENA through dialogue, research, leadership and collaboration with universities, institutions and partners.",
+              "بصفتنا الفرع الإقليمي لـ IAPSS، نعزز المشاركة الأكاديمية والمهنية في المنطقة عبر الحوار والبحث والقيادة والتعاون مع الجامعات والمؤسسات والشركاء."
+            )}</p>
+          </div>
+          <div className="grid md:grid-cols-3">
+            {pillars.map(([t, d], i) => (
+              <div key={i} className="flex min-h-[320px] flex-col border border-white/15 p-8 transition hover:bg-cyan/10 md:border-e-0 md:last:border-e">
+                <span className="text-xs font-bold text-sky">0{i + 1}</span>
+                <h3 className="mt-14 text-xl font-bold">{t}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#9fb3ca]">{d}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* LEADERSHIP & TEAM */}
+      <section id="team" className="bg-[#edf5f7]">
+        <div className="mx-auto max-w-[1360px] px-6 py-28">
+          <div className="mb-12">
+            {eyebrow(l("The people", "الأشخاص"))}
+            <h2 className={h2cls}>{l("Leadership", "القيادة")}</h2>
+          </div>
+
+          {/* message from the Chair */}
+          <article data-spot className="spot relative overflow-hidden bg-gradient-to-br from-[#04142f] to-[#08295a] p-8 text-white md:p-14">
+            <div className="orbit pointer-events-none absolute -end-40 -top-40 h-[480px] w-[480px]" />
+            <div className="relative grid gap-10 lg:grid-cols-[.7fr_1.3fr]">
+              <div>
+                <p className="flex items-center gap-3 text-xs font-bold uppercase tracking-[.2em] text-sky"><span className="h-0.5 w-10 bg-cyan" /> {l("Message from the Chair", "رسالة الرئيس")}</p>
+                <div className="mt-6 grid h-24 w-24 place-items-center bg-cyan text-3xl font-extrabold text-white">MA</div>
+                <h3 className="mt-5 text-4xl font-extrabold leading-tight md:text-5xl">Mohanad<br />Albayati</h3>
+                <p className="mt-3 text-sm font-bold uppercase tracking-[.14em] text-sky">{l("IAPSS MENA Chair", "رئيس IAPSS MENA")}</p>
+              </div>
+              <div className="space-y-5 text-lg leading-8 text-white/85">
+                <p className="text-2xl font-semibold leading-9 text-white">{l(
+                  "It is a privilege to lead IAPSS MENA at a time when our region is witnessing profound political, social and institutional change.",
+                  "يشرفني أن أقود IAPSS MENA في وقت تشهد فيه منطقتنا تحولات سياسية واجتماعية ومؤسسية عميقة."
+                )}</p>
+                <p>{l(
+                  "Our vision is to build a strong regional platform connecting students, young professionals, researchers, academics and practitioners across the Middle East and North Africa, creating meaningful opportunities for dialogue, research, leadership, professional development and institutional cooperation.",
+                  "تتمثل رؤيتنا في بناء منصة إقليمية قوية تربط الطلاب والمهنيين الشباب والباحثين والأكاديميين والممارسين في الشرق الأوسط وشمال أفريقيا، وتوفر فرصًا هادفة للحوار والبحث والقيادة والتطوير المهني والتعاون المؤسسي."
+                )}</p>
+                <p>{l(
+                  "We believe young people should not only participate in conversations about the region’s future, but help shape them. Our work creates spaces where ideas become research, research informs policy and regional connections lead to lasting impact.",
+                  "نؤمن بأن دور الشباب لا يقتصر على المشاركة في النقاشات المتعلقة بمستقبل المنطقة، بل يجب أن يسهموا في صياغته. لذلك نعمل على إنشاء مساحات تتحول فيها الأفكار إلى بحوث، وتسترشد السياسات بالبحوث، وتقود الروابط الإقليمية إلى أثر مستدام."
+                )}</p>
+                <p>{l(
+                  "We look forward to expanding IAPSS MENA’s opportunities, partnerships and impact across the region.",
+                  "نتطلع إلى توسيع فرص IAPSS MENA وشراكاتها وأثرها في أنحاء المنطقة."
+                )}</p>
+                <p className="border-t border-white/15 pt-5 text-base font-bold text-white">Mohanad Albayati<span className="block text-sm font-medium text-white/60">IAPSS MENA</span></p>
+              </div>
+            </div>
+          </article>
+
+          {/* leadership team */}
+          <h3 className="mb-6 mt-16 flex items-center gap-3 text-xs font-bold uppercase tracking-[.2em] text-teal2"><span className="h-0.5 w-10 bg-cyan" /> {l("Leadership team", "فريق القيادة")}</h3>
+          <div className="grid gap-5 md:grid-cols-3">
+            {[
+              ["MA", l("IAPSS MENA Chair", "رئيس IAPSS MENA"), "Mohanad Albayati", l("MA in International Relations and Strategic Security — Jindal School of International Affairs, O.P. Jindal Global University.", "ماجستير في العلاقات الدولية والأمن الاستراتيجي — كلية جندال للشؤون الدولية، جامعة O.P. Jindal Global."), "mena@iapss.org"],
+              ["JA", l("Deputy Chair", "نائبة الرئيس"), "Joelle Abou Nader", l("MA in International Relations — University of Massachusetts Boston.", "ماجستير في العلاقات الدولية — جامعة ماساتشوستس بوسطن."), "deputy.mena@iapss.org"],
+              ["DZ", l("Media Director", "مديرة الإعلام"), "Dana Zantout", l("BA in Journalism and International Media — Lebanese American University (LAU).", "بكالوريوس في الصحافة والإعلام الدولي — الجامعة اللبنانية الأميركية (LAU)."), "media.mena@iapss.org"],
+            ].map(([ini, role, name, bio, email]) => (
+              <article key={email} className="group border border-brand/10 border-t-4 border-t-cyan bg-white p-7 transition hover:-translate-y-1 hover:shadow-xl">
+                <div className="grid h-16 w-16 place-items-center bg-gradient-to-br from-brand to-brand-500 text-xl font-extrabold text-white">{ini}</div>
+                <div className="mt-5 text-xs font-bold uppercase tracking-[.14em] text-teal2">{role}</div>
+                <h4 className="mt-1 text-2xl font-extrabold text-brand">{name}</h4>
+                <p className="mt-3 text-sm leading-7 text-slate-600">{bio}</p>
+                <a href={`mailto:${email}`} className="mt-5 block text-sm font-bold text-brand underline-offset-4 hover:underline" dir="ltr">{email}</a>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* OPPORTUNITIES */}
+      <section id="opportunities" className="mx-auto max-w-[1360px] px-6 py-28">
+        <div className="mb-12">
+          {eyebrow(l("Get involved", "شارك معنا"))}
+          <h2 className={h2cls}>{l("Opportunities", "الفرص")}</h2>
+        </div>
+        <div className="grid gap-5 lg:grid-cols-2">
+          <article className="flex flex-col border border-brand/10 border-t-4 border-t-cyan bg-white p-8">
+            <span className="w-fit bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700">{soon}</span>
+            <h3 className="mt-4 text-3xl font-extrabold text-brand">{l("Leadership Program", "برنامج القيادة")}</h3>
+            <p className="mt-3 text-slate-600">{l(
+              "An upcoming leadership development program for political science students and young professionals across the region.",
+              "برنامج قادم لتنمية مهارات القيادة لدى طلاب العلوم السياسية والمهنيين الشباب في المنطقة."
+            )}</p>
+            <p className="mt-4 text-sm font-bold text-brand/70">{tba}</p>
+            <p className="mt-auto pt-6 text-sm text-slate-500">{l(
+              "Registration information will be added here only when an official link is published.",
+              "ستُضاف معلومات التسجيل هنا فقط عند نشر رابط رسمي."
+            )}</p>
+          </article>
+
+          <article className="flex flex-col overflow-hidden border border-brand/10 border-t-4 border-t-cyan bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/img/best-diplomats.jpg" alt="Best Diplomats" loading="lazy" className="aspect-[16/9] w-full object-cover" />
+            <div className="flex flex-1 flex-col p-8">
+              <span className="w-fit bg-brand-50 px-3 py-1 text-xs font-bold text-brand">{l("Member benefit", "ميزة للأعضاء")}</span>
+              <h3 className="mt-4 text-3xl font-extrabold text-brand">{l("Exclusive Member Benefit with Best Diplomats", "ميزة حصرية للأعضاء مع Best Diplomats")}</h3>
+              <p className="mt-3 text-slate-600">{l(
+                "Eligible members may request discounted rates for the Best Diplomats Türkiye Conference and the Best Diplomats UN Immersion Program.",
+                "يمكن للأعضاء المؤهلين طلب أسعار مخفّضة لمؤتمر Best Diplomats في تركيا وبرنامج Best Diplomats للانغماس في الأمم المتحدة."
+              )}</p>
+              <a href={mail("Request for IAPSS MENA Member Discount Code")} className="sq mt-5 w-fit bg-cyan px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-teal2">{l("Request discount code", "اطلب رمز الخصم")}</a>
+              <p className="mt-5 bg-[#eaf2f5] p-4 text-xs leading-6 text-slate-600">
+                <b className="text-brand">{l("Important notice. ", "ملاحظة مهمة. ")}</b>
+                {l(
+                  "All programs are independently organized and managed by Best Diplomats. Registration, payment, fees, refunds, participation and all program matters are handled directly by Best Diplomats. IAPSS MENA does not collect payments, process registrations, sell packages or provide program services. Its role is limited to facilitating access to the discount for eligible members, and the code creates no financial obligation for IAPSS MENA.",
+                  "جميع البرامج تُنظَّم وتُدار بشكل مستقل من قبل Best Diplomats. التسجيل والدفع والرسوم والاسترداد والمشاركة وكل ما يتعلق بالبرامج تتم مباشرة عبر Best Diplomats. لا يجمع IAPSS MENA أي مدفوعات ولا يعالج التسجيلات ولا يبيع حزمًا ولا يقدم خدمات البرامج. يقتصر دوره على تسهيل الحصول على الخصم للأعضاء المؤهلين، ولا ينشئ الرمز أي التزام مالي على IAPSS MENA."
+                )}
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      {/* PROJECTS (details) */}
+      <section id="projects" className="bg-[#edf5f7]">
+        <div className="mx-auto max-w-[1360px] px-6 py-28">
+          <div className="mb-12">
+            {eyebrow(l("What we have done", "ما أنجزناه"))}
+            <h2 className={h2cls}>{l("Our projects", "مشاريعنا")}</h2>
+          </div>
+
+          <article className="grid gap-10 border border-brand/10 bg-white p-8 md:p-12 lg:grid-cols-[.8fr_1.2fr]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/img/policy-brief.jpg" alt={l("IAPSS MENA Policy Brief Competition 2026", "مسابقة موجز السياسات 2026")} loading="lazy" className="w-full border border-brand/10 object-cover" />
+            <div>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="bg-brand-50 px-3 py-1 text-xs font-bold text-brand">{l("Research competition", "مسابقة بحثية")}</span>
+                <span className="bg-slate-100 px-3 py-1 text-xs font-bold text-slate-500">{l("Submissions closed", "انتهى التقديم")}</span>
+              </div>
+              <h3 className="mt-4 text-3xl font-extrabold text-brand md:text-4xl">{l("IAPSS MENA Policy Brief Competition 2026", "مسابقة موجز السياسات 2026")}</h3>
+              <p className="mt-3 text-slate-600">{l(
+                "An IAPSS MENA initiative in collaboration with the Comparative Politics Student Research Committee (CPSRC). An opportunity for students and emerging researchers to turn evidence-based analysis into practical recommendations on governance and political change in MENA.",
+                "مبادرة من IAPSS MENA بالتعاون مع لجنة البحث الطلابية للسياسة المقارنة (CPSRC). فرصة للطلاب والباحثين الشباب لتحويل التحليل القائم على الأدلة إلى توصيات عملية حول الحوكمة والتغيير السياسي في المنطقة."
+              )}</p>
+
+              <dl className="mt-7 grid gap-3 sm:grid-cols-2">
+                {[
+                  [l("Theme", "الموضوع"), "Comparative Perspectives on Governance and Political Change in the MENA Region"],
+                  [l("Submission", "المطلوب"), l("Policy brief · 1,000–1,500 words", "موجز سياسات · 1,000–1,500 كلمة")],
+                  [l("Language", "اللغة"), "English"],
+                  [l("Deadline", "الموعد النهائي"), l("1 October 2026", "1 أكتوبر 2026")],
+                  [l("Awards", "الجوائز"), l("Recognition for the winner, first runner-up and second runner-up", "تكريم الفائز والمركز الأول والمركز الثاني")],
+                ].map(([k, v]) => (
+                  <div key={k} className="border-s-4 border-cyan bg-[#f5f8fa] p-4">
+                    <dt className="text-xs font-bold uppercase tracking-wide text-slate-400">{k}</dt>
+                    <dd className="mt-1 text-sm font-bold text-brand" dir={v.startsWith("Comparative") ? "ltr" : undefined}>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+
+              <h4 className="mt-8 text-sm font-bold uppercase tracking-wide text-slate-500">{l("Who could apply?", "من يمكنه التقديم؟")}</h4>
+              <p className="mt-2 text-slate-600">{l(
+                "University students, graduates, young researchers and emerging scholars. The policy brief had to be original, unpublished and include evidence-based analysis with practical recommendations.",
+                "طلاب الجامعات، الخريجون، الباحثون الشباب والباحثون الصاعدون. يجب أن يكون موجز السياسات أصليًا وغير منشور ويتضمن تحليلًا قائمًا على الأدلة وتوصيات عملية."
+              )}</p>
+
+              <h4 className="mt-8 text-sm font-bold uppercase tracking-wide text-slate-500">{l("Research areas", "مجالات البحث")}</h4>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {RESEARCH_AREAS.map(([en, ar]) => (
+                  <span key={en} className="border border-brand/15 bg-white px-3 py-1.5 text-sm text-slate-700">{l(en, ar)}</span>
+                ))}
+              </div>
+
+              <p className="mt-8 bg-[#eaf2f5] p-4 text-sm text-slate-600">{l(
+                "Submissions underwent double screening by CPSRC and IAPSS MENA members. AI tools could be used for language or editorial assistance when disclosed; substantive use had to be disclosed in accordance with the announcement policy.",
+                "تخضع المشاركات لتقييم مزدوج من CPSRC وأعضاء IAPSS MENA. يمكن استخدام أدوات الذكاء الاصطناعي للمساعدة اللغوية أو التحريرية بشرط الإفصاح عنها، ويجب الإفصاح عن أي استخدام جوهري وفق السياسة الموضحة في الإعلان."
+              )}</p>
+            </div>
+          </article>
+
+          <div className="mt-6"><SiteSection kind="project" empty="" /></div>
+        </div>
+      </section>
+
+      {/* IAPSS GLOBAL PROGRAMS */}
+      <section className="bg-white">
+        <div className="mx-auto grid max-w-[1360px] items-start gap-16 px-6 py-28 lg:grid-cols-[1fr_1fr]">
+          <div className="relative lg:sticky lg:top-28">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/img/delegations.jpg" alt="IAPSS Delegations" loading="lazy" className="aspect-square w-full object-cover" />
+            <div className="pointer-events-none absolute inset-0 m-5 border border-white/40" />
+            <span className="absolute bottom-7 start-7 bg-white px-3.5 py-2.5 text-xs font-black tracking-[.14em] text-brand">IAPSS GLOBAL</span>
+          </div>
+          <div>
+            {eyebrow(l("Global pathways", "مسارات عالمية"))}
+            <h2 className={h2cls}>{l("Academic programs", "البرامج الأكاديمية")}</h2>
+            <p className="mt-5 text-lg leading-8 text-slate-600">{l(
+              "IAPSS Global programs provide pathways for research, academic exchange, delegations and international cooperation, with direct links to their official pages.",
+              "تتيح برامج IAPSS Global مسارات للبحث والتبادل الأكاديمي والوفود والتعاون الدولي، ويقدّم الموقع روابطها الرسمية مباشرة."
+            )}</p>
+            <ul className="mt-8 divide-y divide-brand/10 border-y border-brand/10">
+              {programs.map(([t, d, href]) => (
+                <li key={t} className="flex flex-wrap items-center justify-between gap-4 py-5">
+                  <div className="max-w-md">
+                    <div className="text-xs font-bold uppercase tracking-[.14em] text-teal2">IAPSS Global</div>
+                    <h3 className="mt-1 text-xl font-bold text-brand">{t}</h3>
+                    <p className="mt-1 text-sm text-slate-600">{d}</p>
+                  </div>
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="sq bg-brand px-5 py-3 text-xs font-extrabold text-white transition hover:bg-brand-500">{l("Visit program", "زيارة البرنامج")}</a>
+                </li>
+              ))}
+            </ul>
+            <a href="https://iapss.org/iapss-mena/" target="_blank" rel="noopener noreferrer" className="sq mt-8 inline-block bg-cyan px-6 py-4 text-sm font-extrabold text-white transition hover:bg-teal2">IAPSS MENA · iapss.org</a>
+          </div>
+        </div>
+      </section>
+
+      {/* PUBLICATIONS */}
+      <section id="publications" className="bg-[#edf5f7]">
+        <div className="mx-auto max-w-[1360px] px-6 py-28">
+          <div className="mb-12">
+            {eyebrow(l("Knowledge", "المعرفة"))}
+            <h2 className={h2cls}>{l("Journals & publications", "المجلات والمنشورات")}</h2>
+          </div>
+          <div className="grid gap-5 md:grid-cols-3">
+            {publications.map(([t, d, href], i) => (
+              <article key={t} className="flex flex-col border border-brand/10 border-t-4 border-t-cyan bg-white p-8 transition hover:-translate-y-1 hover:shadow-xl">
+                <span className="text-4xl font-extrabold text-teal2">0{i + 1}</span>
+                <div className="mt-4 text-xs font-bold uppercase tracking-[.14em] text-slate-400">IAPSS Global</div>
+                <h3 className="mt-1 text-2xl font-bold text-brand">{t}</h3>
+                <p className="mt-2 flex-1 text-sm leading-7 text-slate-600">{d}</p>
+                <a href={href} target="_blank" rel="noopener noreferrer" className="sq mt-6 w-fit bg-brand px-5 py-3 text-xs font-extrabold text-white transition hover:bg-brand-500">{l("Visit platform", "زيارة المنصة")}</a>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* PARTNERS */}
+      <section id="partners" className="mx-auto max-w-[1360px] px-6 py-28">
+        <div className="mb-12">
+          {eyebrow(l("Together", "معًا"))}
+          <h2 className={h2cls}>{l("Our partnerships", "شراكاتنا")}</h2>
+        </div>
+        <SiteSection kind="partner" empty={l("Our partners will be listed here soon.", "سيتم عرض شركائنا هنا قريبًا.")} />
+
+        <div className="mt-20">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div>
+              {eyebrow(l("IAPSS Global", "IAPSS Global"))}
+              <h3 className="mt-3 text-3xl font-extrabold text-brand md:text-4xl">{l("Partners of IAPSS Global", "شركاء IAPSS Global")}</h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} aria-label={l("Search partners", "ابحث في الشركاء")}
+                placeholder={l("Search partners…", "ابحث في الشركاء…")}
+                className="sq w-64 border border-brand/15 bg-white px-4 py-3 text-sm outline-none transition focus:border-cyan focus:ring-4 focus:ring-cyan/15" />
+              <span className="whitespace-nowrap bg-brand-50 px-3.5 py-3 text-xs font-bold text-brand" aria-live="polite">
+                {q.trim() ? `${filteredPartners.length} / ${GLOBAL_PARTNERS.length}` : GLOBAL_PARTNERS.length} {l("organisations", "جهة")}
+              </span>
+            </div>
+          </div>
+          <p className="mt-4 max-w-3xl border-s-4 border-cyan bg-white px-5 py-4 text-sm leading-7 text-slate-600">{l(
+            "Organizations listed on the official IAPSS Global partners page. These organizations are partners of IAPSS Global and are not automatically attributed to IAPSS MENA.",
+            "الجهات المدرجة في صفحة شركاء IAPSS Global الرسمية. هذه الجهات شركاء لـ IAPSS Global ولا تُنسب تلقائيًا إلى IAPSS MENA."
+          )}</p>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {filteredPartners.map(([name, url]) => (
+              <a key={name} href={url} target="_blank" rel="noopener noreferrer" data-rv
+                className="group flex items-center gap-4 border border-brand/10 bg-white p-4 transition duration-300 hover:-translate-y-1 hover:border-cyan hover:shadow-[0_20px_50px_rgba(3,20,48,.12)]">
+                <PartnerLogo domain={domainOf(url)} name={name} />
+                <span className="min-w-0">
+                  <strong className="block text-sm font-bold leading-snug text-brand">{name}</strong>
+                  <small className="mt-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                    {name === "Yale University" ? l("Announced partnership", "شراكة معلنة") : l("IAPSS Global Partner", "شريك IAPSS Global")}
+                  </small>
+                </span>
+              </a>
+            ))}
+          </div>
+          {filteredPartners.length === 0 && (
+            <p className="mt-8 border border-dashed border-brand/20 bg-white p-8 text-center text-slate-500">{l("No partner matches your search.", "لا توجد جهة مطابقة لبحثك.")}</p>
+          )}
+        </div>
+      </section>
+
+      {/* NEWS */}
+      <section id="news" className="border-t border-brand/10 bg-white">
+        <div className="mx-auto max-w-[1360px] px-6 py-28">
+          <div className="mb-12">
+            {eyebrow(l("Updates", "المستجدات"))}
+            <h2 className={h2cls}>{l("News", "الأخبار")}</h2>
+            <p className="mt-4 max-w-2xl text-slate-600">{l("News and institutional updates from the regional chapter.", "أخبار الفرع الإقليمي وتحديثاته المؤسسية.")}</p>
+          </div>
+          <SiteSection kind="news" empty={
+            <div className="border border-dashed border-brand/20 bg-[#f5f8fa] p-10 text-center">
+              <p className="mx-auto max-w-xl text-slate-600">{l(
+                "No news articles have been published yet. Explore current programs and events or visit our publications.",
+                "لا توجد أخبار منشورة حاليًا. يمكنك الاطلاع على البرامج والفعاليات الحالية أو زيارة مساحة المنشورات."
+              )}</p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <a href="#events" className="sq bg-brand px-6 py-3.5 text-sm font-extrabold text-white transition hover:bg-brand-500">{l("Programs & events", "البرامج والفعاليات")}</a>
+                <a href="#publications" className="sq border border-brand/30 px-6 py-3.5 text-sm font-extrabold text-brand transition hover:bg-brand-50">{l("Publications", "المنشورات")}</a>
+              </div>
+            </div>
+          } />
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section id="faq" className="border-t border-brand/10 bg-[#edf5f7]">
+        <div className="mx-auto grid max-w-[1360px] gap-12 px-6 py-28 lg:grid-cols-[.8fr_1.2fr]">
+          <div>
+            {eyebrow(l("Questions", "أسئلة"))}
+            <h2 className={h2cls}>{l("Frequently asked questions", "الأسئلة الشائعة")}</h2>
+            <p className="mt-5 text-slate-600">
+              {l("Can't find your answer? Ask MENA in the corner, or write to ", "لم تجد إجابتك؟ اسأل MENA في الزاوية، أو راسلنا على ")}
+              <a href={`mailto:${CONTACT}`} className="font-bold text-brand underline-offset-4 hover:underline" dir="ltr">{CONTACT}</a>.
+            </p>
+          </div>
+          <div className="divide-y divide-brand/10 border-y border-brand/10 bg-white px-6">
+            {faqs.map(([question, answer], i) => (
+              <div key={i}>
+                <button onClick={() => setFaq(faq === i ? null : i)} aria-expanded={faq === i}
+                  className="flex w-full items-center justify-between gap-6 py-6 text-start text-lg font-bold text-brand transition hover:text-teal2">
+                  <span>{question}</span>
+                  <span aria-hidden className="text-3xl font-light leading-none text-teal2">{faq === i ? "−" : "+"}</span>
+                </button>
+                <div className="acc" data-open={faq === i}>
+                  <div className="overflow-hidden"><p className="pb-6 pe-10 leading-8 text-slate-600">{answer}</p></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* INSTITUTIONAL COLLABORATION + JOIN */}
+      <section id="contact" className="relative overflow-hidden bg-cyan text-white">
+        <div className="pointer-events-none absolute -bottom-20 -end-9 select-none text-[15rem] font-black leading-none text-white/10">MENA</div>
+        <div className="relative mx-auto grid max-w-[1360px] gap-12 px-6 py-28 lg:grid-cols-[1.2fr_.8fr]">
+          <div>
+            <p className="flex items-center gap-3 text-xs font-bold uppercase tracking-[.2em]"><span className="h-0.5 w-10 bg-white" /> {l("Institutional collaboration", "التعاون المؤسسي")}</p>
+            <h2 className="mt-4 max-w-3xl text-[clamp(2.6rem,5.5vw,5.6rem)] font-extrabold leading-[1.03]">{l("Let's build stronger regional dialogue.", "لنبنِ حوارًا إقليميًا أقوى.")}</h2>
+            <p className="mt-5 max-w-xl text-lg text-white/90">{l(
+              "We welcome dialogue with universities, research centers, international institutions, diplomatic bodies and relevant organizations.",
+              "نرحب بالتواصل مع الجامعات ومراكز البحوث والمؤسسات الدولية والجهات الدبلوماسية والمنظمات ذات الصلة."
+            )}</p>
+            <p className="mt-3 text-sm text-white/80">{l("For collaboration, media inquiries and participation opportunities, use the official email.", "للتعاون والاستفسارات الإعلامية وفرص المشاركة، استخدم البريد الرسمي.")}</p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a href={mail("Collaboration and partnerships")} className="sq bg-white px-6 py-4 text-sm font-extrabold text-brand transition hover:-translate-y-0.5">{l("Collaboration & partnerships", "تعاون وشراكات")}</a>
+              <a href={mail("Media")} className="sq border border-white/60 px-6 py-4 text-sm font-extrabold transition hover:bg-white/10">{l("Media", "إعلام")}</a>
+              <a href={mail("General inquiry")} className="sq border border-white/60 px-6 py-4 text-sm font-extrabold transition hover:bg-white/10">{l("General inquiry", "استفسار عام")}</a>
+            </div>
+            <p className="mt-5 text-sm font-semibold text-white/90" dir="ltr">{CONTACT}</p>
+          </div>
+
+          <div className="bg-brand/95 p-8 shadow-2xl">
+            <h3 className="text-2xl font-bold">{l("Are you an IAPSS MENA member?", "هل أنت عضو في IAPSS MENA؟")}</h3>
+            <p className="mt-2 text-sm text-white/70">{l("Sign in to your space, or ask to join. Every request is reviewed by an admin.", "سجّل الدخول إلى مساحتك أو اطلب الانضمام. يراجع المشرف كل طلب.")}</p>
+            <ol className="mt-5 space-y-3">
+              {[
+                [l("Create your account", "أنشئ حسابك"), l("Fill in your name and email.", "أدخل اسمك وبريدك الإلكتروني.")],
+                [l("An admin reviews it", "يراجعه المشرف"), l("They approve or decline your request.", "يوافق على طلبك أو يرفضه.")],
+                [l("Enter the platform", "ادخل المنصة"), l("Join your group, follow tasks and chat with the team.", "انضم إلى مجموعتك وتابع المهام وتحدث مع الفريق.")],
+              ].map(([t, d], i) => (
+                <li key={i} className="flex gap-4 text-sm">
+                  <span className="text-xl font-extrabold text-sky">0{i + 1}</span>
+                  <div><div className="font-semibold">{t}</div><div className="text-white/65">{d}</div></div>
+                </li>
+              ))}
+            </ol>
+            <div className="mt-6 flex gap-3">
+              <Link href="/login" className="sq bg-white px-5 py-3 text-sm font-extrabold text-brand">{l("Sign in", "تسجيل الدخول")}</Link>
+              <Link href="/signup" className="sq border border-white/50 px-5 py-3 text-sm font-extrabold hover:bg-white/10">{l("Request to join", "اطلب الانضمام")}</Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="relative bg-[#020d20] pt-20 text-[#9fb3ca]">
+        <div className="absolute start-0 top-0 h-[7px] w-[34%] bg-cyan" />
+        <div className="mx-auto grid max-w-[1360px] gap-12 px-6 md:grid-cols-[1.35fr_repeat(3,.7fr)]">
+          <div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mena.png" alt="IAPSS MENA" className="h-14 w-auto brightness-0 invert" />
+            <p className="mt-5 max-w-sm text-sm leading-7">{l(
+              "IAPSS MENA is the Middle East and North Africa Regional Chapter of the International Association for Political Science Students (IAPSS).",
+              "IAPSS MENA هو الفرع الإقليمي للرابطة الدولية لطلاب العلوم السياسية (IAPSS) في الشرق الأوسط وشمال أفريقيا."
+            )}</p>
+            <a href={`mailto:${CONTACT}`} className="mt-4 block font-bold text-white" dir="ltr">{CONTACT}</a>
+          </div>
+          <div>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[.16em] text-white">{l("Regional platform", "المنصة الإقليمية")}</h4>
+            <ul className="space-y-2.5 text-sm">
+              <li><a href="#about" className="hover:text-white">{l("About", "من نحن")}</a></li>
+              <li><a href="#team" className="hover:text-white">{l("Leadership", "القيادة")}</a></li>
+              <li><a href="#events" className="hover:text-white">{l("Programs & events", "البرامج والفعاليات")}</a></li>
+              <li><a href="#opportunities" className="hover:text-white">{l("Opportunities", "الفرص")}</a></li>
+              <li><a href="#news" className="hover:text-white">{l("News", "الأخبار")}</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[.16em] text-white">{l("Knowledge & collaboration", "المعرفة والتعاون")}</h4>
+            <ul className="space-y-2.5 text-sm">
+              <li><a href="https://iapss.org/" target="_blank" rel="noopener noreferrer" className="hover:text-white">{l("IAPSS Global programs", "برامج IAPSS Global")}</a></li>
+              <li><a href="#publications" className="hover:text-white">{l("Publications", "المنشورات")}</a></li>
+              <li><a href="#partners" className="hover:text-white">{l("Partnerships", "الشراكات")}</a></li>
+              <li><a href="#contact" className="hover:text-white">{l("Contact", "تواصل معنا")}</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="mb-4 text-xs font-bold uppercase tracking-[.16em] text-white">{l("International", "الرابطة الدولية")}</h4>
+            <ul className="space-y-2.5 text-sm">
+              <li><a href="https://iapss.org/" target="_blank" rel="noopener noreferrer" className="hover:text-white">IAPSS Global</a></li>
+              <li><a href="https://iapss.org/iapss-mena/" target="_blank" rel="noopener noreferrer" className="hover:text-white">IAPSS MENA</a></li>
+              <li><a href="https://www.linkedin.com/company/iapssmenaofficial" target="_blank" rel="noopener noreferrer" className="hover:text-white">LinkedIn</a></li>
+              <li><a href="https://www.instagram.com/iapss.mena/" target="_blank" rel="noopener noreferrer" className="hover:text-white">Instagram</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="mx-auto mt-14 flex max-w-[1360px] flex-wrap items-center justify-between gap-3 border-t border-white/10 px-6 py-6 text-xs">
+          <span>© 2026 IAPSS MENA · {l("A regional chapter within IAPSS Global", "فرع إقليمي ضمن IAPSS Global")}</span>
+          <span className="font-semibold tracking-wide text-white/80">{l("Ideas · People · Dialogue · Change", "أفكار · أشخاص · حوار · تغيير")}</span>
+        </div>
+      </footer>
+      <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label={l("Back to top", "العودة للأعلى")}
+        className={`sq fixed bottom-5 start-4 z-50 bg-brand px-4 py-3 text-xs font-bold uppercase tracking-wider text-white shadow-lg transition duration-300 hover:bg-brand-500 ${showTop ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"}`}>
+        ↑ {l("Top", "أعلى")}
+      </button>
+      <Chatbot context="public" />
+    </main>
+  );
+}

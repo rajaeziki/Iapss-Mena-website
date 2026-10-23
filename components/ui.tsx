@@ -1,13 +1,13 @@
 export function Progress({ value }: { value: number }) {
   return (
     <div className="h-2 w-full overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuenow={value} aria-valuemin={0} aria-valuemax={100}>
-      <div className="h-full rounded-full bg-gradient-to-r from-brand via-[#3a4f8f] to-teal2 transition-all duration-700" style={{ width: `${value}%` }} />
+      <div className="h-full rounded-full bg-gradient-to-r from-brand via-[#0a2a57] to-teal2 transition-all duration-700" style={{ width: `${value}%` }} />
     </div>
   );
 }
 
 const ACCENT: Record<string, string> = {
-  brand: "from-brand to-[#3a4f8f]",
+  brand: "from-brand to-[#0a2a57]",
   teal: "from-teal2 to-[#4fd1c5]",
   green: "from-emerald-600 to-emerald-400",
   rose: "from-rose-600 to-orange-400",
@@ -42,7 +42,7 @@ export function Empty({ children }: { children: React.ReactNode }) {
 
 /** Deterministic gradient per group name so each group gets its own colour. */
 const GRADS = [
-  "from-[#1e2c50] to-[#3a4f8f]", "from-[#0e7c86] to-[#4fd1c5]", "from-[#e4572e] to-[#ff9a76]",
+  "from-[#061a3b] to-[#0a2a57]", "from-[#0e7c86] to-[#4fd1c5]", "from-[#e4572e] to-[#ff9a76]",
   "from-[#6d4bd6] to-[#9f86ee]", "from-[#2b6cb0] to-[#63b3ed]", "from-[#b83280] to-[#ed64a6]",
 ];
 export const groupGradient = (name: string) =>

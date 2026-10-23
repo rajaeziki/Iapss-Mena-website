@@ -9,6 +9,7 @@ const KINDS = [
   { key: "team", label: "Team members", subtitle: "Role (e.g. Liaison Coordinator)", help: "People shown in the “Our team” section." },
   { key: "partner", label: "Partners", subtitle: "Type (e.g. University, NGO)", help: "Organisations shown in “Our partnerships”." },
   { key: "project", label: "Projects", subtitle: "Year (e.g. 2025)", help: "Past and current work shown in “Our projects”." },
+  { key: "news", label: "News", subtitle: "Date (e.g. 12 November 2026)", help: "Articles shown in the “News” section." },
 ] as const;
 
 export default function ContentPage() {
@@ -55,7 +56,7 @@ export default function ContentPage() {
       <p className="mb-4 text-sm text-slate-500">{cfg.help}</p>
 
       <form onSubmit={add} className="card mb-6 grid gap-3 md:grid-cols-2">
-        <div><label className="label">{kind === "team" ? "Full name" : "Name"}</label><input className="input" required value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></div>
+        <div><label className="label">{kind === "team" ? "Full name" : kind === "news" ? "Headline" : "Name"}</label><input className="input" required value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} /></div>
         <div><label className="label">{cfg.subtitle}</label><input className="input" value={f.subtitle} onChange={(e) => setF({ ...f, subtitle: e.target.value })} /></div>
         <div className="md:col-span-2"><label className="label">Description</label><textarea className="input min-h-[5rem]" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
         <div className="md:col-span-2"><label className="label">Link (optional)</label><input className="input" type="url" placeholder="https://…" value={f.link} onChange={(e) => setF({ ...f, link: e.target.value })} /></div>

@@ -33,12 +33,12 @@ function Shell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-screen md:flex">
       <div className="dot-grid pointer-events-none fixed inset-0 -z-10 opacity-60 [mask-image:linear-gradient(to_bottom,black,transparent_55%)]" />
-      <div className="pointer-events-none fixed -right-40 -top-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-gradient-to-br from-[#c9d5f7] to-[#bfeaea] opacity-60 blur-3xl" />
+      <div className="pointer-events-none fixed -right-40 -top-40 -z-10 h-[32rem] w-[32rem] rounded-full bg-gradient-to-br from-[#cfe3ee] to-[#bdeff0] opacity-60 blur-3xl" />
 
       <aside className="relative flex flex-col border-b border-slate-200/70 bg-white/80 backdrop-blur-xl md:sticky md:top-0 md:h-screen md:w-64 md:flex-none md:border-b-0 md:border-r">
         <div className="px-5 pt-5"><Logo size={50} href="/dashboard" /></div>
 
-        <div className="mx-4 mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-brand to-[#3a4f8f] p-3 text-white shadow-soft">
+        <div className="mx-4 mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-br from-brand to-[#0a2a57] p-3 text-white shadow-soft">
           <span className="grid h-10 w-10 flex-none place-items-center rounded-full bg-white/20 text-sm font-bold">{initials}</span>
           <div className="min-w-0">
             <div className="truncate text-sm font-semibold">{profile.full_name}</div>

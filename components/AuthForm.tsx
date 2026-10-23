@@ -38,7 +38,7 @@ export default function AuthForm({ mode }: { mode: "login" | "signup" }) {
   return (
     <main className="relative grid min-h-screen place-items-center overflow-hidden px-5">
       <div className="dot-grid absolute inset-0 [mask-image:radial-gradient(ellipse_at_center,black,transparent_75%)]" />
-      <div className="pointer-events-none absolute -right-32 -top-32 h-[30rem] w-[30rem] rounded-full bg-gradient-to-br from-[#c9d5f7] to-[#bfeaea] opacity-70 blur-3xl" />
+      <div className="pointer-events-none absolute -right-32 -top-32 h-[30rem] w-[30rem] rounded-full bg-gradient-to-br from-[#cfe3ee] to-[#bdeff0] opacity-70 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-32 -left-24 h-96 w-96 rounded-full bg-[#ffd9cc] opacity-60 blur-3xl" />
       <div className="relative w-full max-w-sm">
         <div className="mb-6 flex justify-center"><Logo size={72} /></div>

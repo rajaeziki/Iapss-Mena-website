@@ -45,7 +45,7 @@ export default function TodoPage() {
         <ul className="space-y-2">
           {todos.map((t) => (
             <li key={t.id} className="card flex items-center gap-3 !p-3.5">
-              <input type="checkbox" className="h-5 w-5 accent-[#1e2c50]" checked={t.done} onChange={() => toggle(t)} aria-label="Done" />
+              <input type="checkbox" className="h-5 w-5 accent-[#061a3b]" checked={t.done} onChange={() => toggle(t)} aria-label="Done" />
               <div className="min-w-0 flex-1">
                 <div className={`text-sm ${t.done ? "text-slate-400 line-through" : "font-medium"}`}>{t.text}</div>
                 {t.due_date && <div className="text-xs text-slate-400">Due {t.due_date}</div>}

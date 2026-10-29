@@ -1,14 +1,16 @@
 "use client";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useLang } from "./Lang";
 
-type M = { role: "user" | "assistant"; content: string };
+type BotLink = { label: string; href: string };
+type M = { role: "user" | "assistant"; content: string; links?: BotLink[] };
 
 export default function Chatbot({ context = "public" }: { context?: "public" | "admin" }) {
   const { l, lang } = useLang();
   const greeting = l(
-    "Hi! I'm the IAPSS MENA assistant. Ask me about our programs, the Policy Brief Competition, our team or how to join.",
-    "مرحبًا! أنا مساعد IAPSS MENA. اسألني عن برامجنا ومسابقة موجز السياسات وفريقنا وكيفية الانضمام."
+    "Hi! I'm the IAPSS MENA assistant. Ask me about our programs, our team, or how to join and volunteer.",
+    "مرحبًا! أنا مساعد IAPSS MENA. اسألني عن برامجنا وفريقنا وكيفية الانضمام والتطوع."
   );
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,7 +31,7 @@ export default function Chatbot({ context = "public" }: { context?: "public" | "
         body: JSON.stringify({ messages: next.slice(1), context, lang }),
       });
       const j = await r.json();
-      setMsgs([...next, { role: "assistant", content: j.reply }]);
+      setMsgs([...next, { role: "assistant", content: j.reply, links: Array.isArray(j.links) ? j.links : [] }]);
     } catch {
       setMsgs([...next, { role: "assistant", content: "Sorry, I couldn't reach the server. Try again." }]);
     }
@@ -39,8 +41,8 @@ export default function Chatbot({ context = "public" }: { context?: "public" | "
   const chips = context === "admin"
     ? ["How do I create a task?", "How do groups work?"]
     : lang === "ar"
-      ? ["ما هو IAPSS MENA؟", "كيف أنضم؟"]
-      : ["What is IAPSS MENA?", "How do I join?"];
+      ? ["كيف أنضم؟", "أريد التطوع", "ما هو IAPSS MENA؟"]
+      : ["How do I join?", "I want to volunteer", "What is IAPSS MENA?"];
 
   return (
     <>
@@ -53,7 +55,19 @@ export default function Chatbot({ context = "public" }: { context?: "public" | "
           <div className="flex-1 space-y-3 overflow-y-auto p-4 text-sm">
             {msgs.map((m, i) => (
               <div key={i} className={m.role === "user" ? "flex justify-end" : "flex"}>
-                <div className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-3.5 py-2 ${m.role === "user" ? "bg-brand text-white" : "bg-slate-100 text-slate-800"}`}>{m.content}</div>
+                <div className="max-w-[88%]">
+                  <div className={`whitespace-pre-wrap rounded-2xl px-3.5 py-2 ${m.role === "user" ? "bg-brand text-white" : "bg-slate-100 text-slate-800"}`}>{m.content}</div>
+                  {m.links && m.links.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {m.links.map((k, n) => {
+                        const cls = `rounded-full px-3.5 py-1.5 text-xs font-semibold transition ${n === 0 ? "bg-cyan text-white hover:bg-teal2" : "border border-brand/20 bg-white text-brand hover:bg-brand-50"}`;
+                        return k.href.startsWith("/")
+                          ? <Link key={k.href + n} href={k.href} onClick={() => setOpen(false)} className={cls}>{k.label}</Link>
+                          : <a key={k.href + n} href={k.href} className={cls}>{k.label}</a>;
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
             {busy && <div className="text-xs text-slate-400">{l("Typing…", "يكتب…")}</div>}

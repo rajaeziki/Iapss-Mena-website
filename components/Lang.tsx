@@ -22,8 +22,10 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     } catch {}
   }, []);
 
-  // The dashboard and auth pages stay English / left-to-right.
-  const lang: Lang = pathname === "/" ? choice : "en";
+  // The public pages are bilingual; the dashboard and sign-in pages stay English / left-to-right.
+  const PUBLIC = ["/about", "/programs", "/partnerships", "/news", "/get-involved", "/volunteer", "/contact"];
+  const isPublic = pathname === "/" || PUBLIC.some((p) => pathname === p || pathname.startsWith(p + "/"));
+  const lang: Lang = isPublic ? choice : "en";
 
   useEffect(() => {
     document.documentElement.lang = lang;

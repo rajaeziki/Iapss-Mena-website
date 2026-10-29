@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: { card: "summary_large_image" },
-  title: "IAPSS MENA | Political Science Students",
+  title: { default: "IAPSS MENA | Political Science Students", template: "%s | IAPSS MENA" },
   description: "IAPSS MENA is the Middle East and North Africa regional chapter of the International Association for Political Science Students.",
 };
 

@@ -25,3 +25,13 @@ export const PRIORITY_STYLE: Record<Priority, string> = {
 };
 export const isOverdue = (t: Task) =>
   !!t.due_date && t.status !== "done" && new Date(t.due_date + "T23:59:59") < new Date();
+
+export type VolunteerRole = {
+  id: string; title: string; team: string; description: string; commitment: string; skills: string;
+  status: "open" | "closed"; sort: number; created_at: string;
+};
+export type VolunteerApplication = {
+  id: string; role_id: string | null; role_title: string; full_name: string; email: string; country: string;
+  university: string; languages: string; availability: string; motivation: string; consent: boolean;
+  status: "new" | "contacted" | "accepted" | "declined"; notes: string; created_at: string;
+};

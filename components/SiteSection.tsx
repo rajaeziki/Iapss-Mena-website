@@ -7,12 +7,12 @@ import PartnerLogo, { domainOf } from "./PartnerLogo";
 const initials = (s: string) => s.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
 
 /** Shows admin-managed items (team / partner / project) on the public page. */
-export default function SiteSection({ kind, empty, exclude = [], heading }: { kind: SiteItem["kind"]; empty: React.ReactNode; exclude?: string[]; heading?: string }) {
+export default function SiteSection({ kind, empty, exclude = [], heading, limit }: { kind: SiteItem["kind"]; empty: React.ReactNode; exclude?: string[]; heading?: string; limit?: number }) {
   const [items, setItems] = useState<SiteItem[] | null>(null);
 
   useEffect(() => {
     supabase.from("site_items").select("*").eq("kind", kind).order("sort").order("created_at")
-      .then(({ data }) => setItems(((data ?? []) as SiteItem[]).filter((i) => !exclude.includes(i.title))));
+      .then(({ data }) => setItems(((data ?? []) as SiteItem[]).filter((i) => !exclude.includes(i.title)).slice(0, limit ?? 1000)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [kind]);
 

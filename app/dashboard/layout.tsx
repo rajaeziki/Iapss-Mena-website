@@ -18,13 +18,16 @@ const NAV = [
 function Shell({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const { profile, isAdmin, signOut } = useAuth();
-  const items = isAdmin ? [...NAV, { href: "/dashboard/people", label: "People" }, { href: "/dashboard/content", label: "Site content" }] : NAV;
+  const items = isAdmin ? [...NAV, { href: "/dashboard/people", label: "People" }, { href: "/dashboard/volunteers", label: "Volunteers" }, { href: "/dashboard/content", label: "Site content" }] : NAV;
   const [pending, setPending] = useState(0);
+  const [newVols, setNewVols] = useState(0);
   useEffect(() => {
     if (!isAdmin) return;
     const count = () => supabase.from("profiles").select("id", { count: "exact", head: true }).eq("status", "pending").then(({ count: c }) => setPending(c ?? 0));
+    const countVols = () => supabase.from("volunteer_applications").select("id", { count: "exact", head: true }).eq("status", "new").then(({ count: c }) => setNewVols(c ?? 0));
     count();
-    const t = setInterval(count, 20000);
+    countVols();
+    const t = setInterval(() => { count(); countVols(); }, 20000);
     return () => clearInterval(t);
   }, [isAdmin, path]);
   const active = (h: string) => (h === "/dashboard" ? path === h : path.startsWith(h));
@@ -52,6 +55,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               className={`relative whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-medium transition ${active(href) ? "bg-brand-50 font-semibold text-brand" : "text-slate-600 hover:bg-slate-100"}`}>
               {active(href) && <span className="absolute left-0 top-1/2 hidden h-5 w-1 -translate-y-1/2 rounded-r-full bg-teal2 md:block" />}
               {label}
+              {href === "/dashboard/volunteers" && newVols > 0 && <span className="ml-2 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white">{newVols}</span>}
               {href === "/dashboard/people" && pending > 0 && <span className="ml-2 rounded-full bg-amber-500 px-2 py-0.5 text-[11px] font-semibold text-white">{pending}</span>}
             </Link>
           ))}
